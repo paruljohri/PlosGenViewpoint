@@ -1,0 +1,96 @@
+initialize() {
+    //define pop gen parameters:
+    defineConstant("N", 1e5);
+    defineConstant("mut_rate_mean", 1e-5);
+    defineConstant("rec_rate_mean", 0.0);
+    defineConstant("s_C", d_sC);
+    defineConstant("s_T", d_sT);
+    defineConstant("s_A", 0.0);
+    defineConstant("s_G", 0.0);
+    defineConstant("mark", 0);
+
+    defineConstant("L", 1);
+    defineConstant("EFF", c(s_A, s_C, s_G, s_T));
+    initializeSLiMOptions(nucleotideBased=T);
+    initializeAncestralNucleotides('A');
+    initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+    initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(mut_rate_mean/3.0));
+    initializeGenomicElement(g1, 0, L-1);
+    initializeRecombinationRate(rec_rate_mean);
+}
+1 {
+    sim.addSubpop("p1", N);
+}
+s1 fitness(NULL) {
+    dominance = 0.5;
+    nuc1 = genome1.nucleotides(0, 0, format="integer");//A:0; C:1; G:2; T:3
+    nuc2 = genome2.nucleotides(0, 0, format="integer");
+    if (nuc1 == nuc2){
+        fitness_diploid = 1.0 + EFF[nuc1];}//AA,CC,GG,TT
+    else{
+        if (EFF[nuc1]==0){fitness_diploid = 1.0 + dominance*EFF[nuc2];}//AC,AT,AG,GA,GC,GT
+        else if (EFF[nuc2]==0){fitness_diploid = 1.0 + dominance*EFF[nuc1];}//CA,TA,CG,TG
+        else if (EFF[nuc1] > 0 & EFF[nuc2]>0){fitness_diploid = 1.0 + max(EFF[nuc1], EFF[nuc2]);}//TC, CT
+        else{print("Error in fitness function");}
+        }
+    //print(relFitness);
+    return(fitness_diploid);
+}
+30 late() { 
+    if (sum(sim.mutations.position == 0) == 0){
+        s1.active = 0;}
+    print("At generation 30:");
+    g = p1.genomes;
+    freq = nucleotideFrequencies(g.nucleotides(start=0, end=0));
+    freq_C = freq[1];
+    freq_T = freq[3];
+    print("freq of C: " + freq_C);
+    print("freq of T: " + freq_T);
+
+    //catn("SNPs: " + paste(g.mutations.nucleotide));
+    //catn("Derived: " + g.nucleotides());
+    //print("SNP frequencies: " + nucleotideFrequencies(g.mutations.nucleotide));
+    //print("Frequency of ancestral nucleotides: " + nucleotideFrequencies(sim.chromosome.ancestralNucleotides()));
+    //sim.outputFixedMutations();
+    //g.outputVCF(simplifyNucleotides=T);
+
+    if (freq_T + freq_C < 0.5){
+        print("sweep not detected");
+        sim.simulationFinished();
+    }
+    else{
+        print("sweep detected");
+        if (freq_T > 0.05){
+            if (freq_C > 0.05){
+                print("soft feder sweep");
+            }
+        }
+    }
+}
+
+31:91 late() {
+    if (sum(sim.mutations.position == 0) == 0){
+        s1.active = 0;}
+    g = p1.genomes;
+    freq = nucleotideFrequencies(g.nucleotides(start=0, end=0));
+    freq_C = freq[1];
+    freq_T = freq[3];
+
+
+    if (sim.generation == 60){
+        print("At generation 60:");
+        print("freq of C: " + freq_C);
+        print("freq of T: " + freq_T);
+        }
+
+    if (sim.generation == 90){
+        print("At generation 90:");
+        print("freq of C: " + freq_C);
+        print("freq of T: " + freq_T);
+        }
+}
+91 late(){
+    catn("Ancestral: " + sim.chromosome.ancestralNucleotides());
+    sim.outputFixedMutations();
+}
+
