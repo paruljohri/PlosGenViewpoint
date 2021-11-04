@@ -3,6 +3,8 @@
 # November 2014
 # Stanford University
 # This script calculates H12 and H2/H1 from population genomic data
+# Slightly modified by Parul Johri for working with Python version 3.7.3 and to add column names to the output file
+# Original script can be found here - https://github.com/ngarud/Harris_etal_response/blob/master/H12_H2H1_simulations.py
 
 import sys
 from optparse import OptionParser
