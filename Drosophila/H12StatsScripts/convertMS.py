@@ -1,6 +1,6 @@
-
 #! /bin/env python
 # bedTileElements - tile each record in input.bed with potentially shorter elements which are written to output.bed 
+#Written by Nandit Garud - https://github.com/ngarud/Harris_etal_response/blob/master/convertMS.py
 import sys
 from optparse import OptionParser
 import copy
