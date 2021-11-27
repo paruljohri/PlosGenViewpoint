@@ -1,0 +1,158 @@
+//To run:
+//slim -d d_seed=seed -d "d_repID='replicate number'" -d "d_folder='folder name'" Duchen_const_rec.slim
+//slim -d d_seed=1 -d "d_repID='test'" -d "d_folder='.'" Duchen_const_rec.slim
+///mnt/storage/software/slim.3.1/build/slim -d d_seed=1 -d "d_repID='test'" -d "d_folder='.'" Duchen_const_rec.slim
+//Duchen et al Model C
+
+initialize() {
+    setSeed(d_seed);
+
+    //set genome structure parameters:
+    inter_len = 1068;
+    intron_len = 100;
+    exon_len = 300;
+    num_genes = 33;
+    num_exons = 5;
+    num_introns = 4;
+    full_block_len = inter_len + exon_len*num_exons + intron_len*num_introns;
+    exon_block_len = exon_len + intron_len;
+    full_genome_len = 100000 - 1;
+
+    //define pop gen parameters:
+    defineConstant("scaling_factor", 300);
+    defineConstant("Nanc_zim", round(5224100/scaling_factor));
+    defineConstant("Ncur_zim", round(4975360/scaling_factor));
+    defineConstant("Nbot_zim", round(620/scaling_factor));
+    defineConstant("Nanc_net", round(16982/scaling_factor));
+    defineConstant("Ncur_net", round(3122470/scaling_factor));
+    defineConstant("Nanc_ral", round(2512/scaling_factor));
+    defineConstant("Ncur_ral", round(15984500/scaling_factor));
+    defineConstant("duration_growth_net", round(194984/scaling_factor));
+    defineConstant("duration_growth_ral", round(1445/scaling_factor));
+
+    defineConstant("mut_rate_mean", scaling_factor*1.0*1e-9);
+    defineConstant("rec_rate_mean", scaling_factor*0.5e-8);
+    defineConstant("g_rate_net", (log(Ncur_net/Nanc_net))/duration_growth_net);
+    defineConstant("g_rate_ral", (log(Ncur_ral/Nanc_ral))/duration_growth_ral);
+    
+    defineConstant("d_f0", 23);
+    defineConstant("d_f1", 51);
+    defineConstant("d_f2", 4);
+    defineConstant("d_f3", 22);
+    print("growth rate of net: " + g_rate_net);
+    //print("growth rate of ral: " + g_rate_ral);
+    print("fraction of effectively neutral mutations: " + d_f0);
+    print("fraction of weakly deleterious mutations: " + d_f1);
+    print("fraction of moderately deleterious mutations: " + d_f2);
+    print("fraction of strongly deleterious mutations: " + d_f3);
+    
+    //define selection coefficient boundaries:
+    defineConstant("t0", 0.0);
+    defineConstant("t1", -1.0/(2*Nanc_zim));
+    defineConstant("t2", -10.0/(2*Nanc_zim));
+    defineConstant("t3", -100.0/(2*Nanc_zim));
+    defineConstant("t4", -1.0);
+    print(Nanc_zim);
+    print(t0);
+    print(t1);
+    print(t2);
+    print(t3);
+    print(t4);
+
+    // set the overall mutation rate map
+    initializeMutationRate(mut_rate_mean);
+
+    //define the DFE:
+    initializeMutationType("m1", 0.5, "f", 0.0); //neutral coding, 2Nes = 0
+    initializeMutationType("m2", 0.5, "s", "return runif(1, t2, t1);"); // -1<2Nes<-10, uniform distribution
+    initializeMutationType("m3", 0.5, "s", "return runif(1, t3, t2);"); //moderately deleterious, -10<2Nes<-100, uniform distribution
+    initializeMutationType("m4", 0.5, "s", "return runif(1, t4, t3);"); //strongly deleterious, 2Nes>=-100, uniform distribution
+    initializeMutationType("m5", 0.5, "f", 0.0); //neutral intergenic, 2Nes = 0
+
+    // g1 genomic element type: uses m1 for all mutations
+    initializeGenomicElementType("g1", m5, 1.0); //intergenic
+    initializeGenomicElementType("g2", m5, 1.0); //intronic
+    initializeGenomicElementType("g3", c(m1, m2, m3, m4), c(d_f0, d_f1, d_f2, d_f3)); //exons: weakly deleterious, gamma
+
+    //defining genes
+    for (index_a in 0:(num_genes-1)){
+        //print (index1);
+        initializeGenomicElement(g1, (index_a*full_block_len), (index_a*full_block_len + inter_len-1)); //intergenic
+        for (index_b in 0:(num_introns-1)){
+            //print (index_a);
+            //print (index_b);
+            initializeGenomicElement(g3, ((index_a*full_block_len) + inter_len + (index_b*exon_block_len)), (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len - 1));//exon
+            initializeGenomicElement(g2, (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len), (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len + intron_len-1));//intron
+            }
+        initializeGenomicElement(g3, (index_a*full_block_len + inter_len + (index_b+1)*exon_block_len), (index_a*full_block_len + inter_len + (index_b+1)*exon_block_len + exon_len - 1));//closing with exon
+        }
+    initializeGenomicElement(g1, full_block_len*num_genes, full_genome_len);//extra intergenic towards the end
+    
+    // read subsampled Drosophila map from Comeron et al. 2012
+    lines = readFile("/home/pjohri/PlosgenDroso/Dmel_rec_rates/100kb_1000replicates/rep" + d_repID + ".rrc");
+    rates0 = NULL;
+    for (line in lines)
+    {
+        components = strsplit(line, "\t");
+        if (components[0] != "Chromosome")
+            {rates0 = c(rates0, asFloat(components[2]));}
+    }
+    print("rates read from file:");
+    print(rates0);
+    ends = c(9998, 19998, 29998, 39998, 49998, 59998, 69998, 79998, 89998, 99999);
+    rates1 = c(rates0[0:(size(rates0)-2)]);
+    rates = rates1*scaling_factor*1e-8; //rates1*scaling_factor*mean_rate
+    print("ends of rec map:");
+    print(ends);
+    print("scaled rates in rec map:");
+    print(rates);
+    initializeRecombinationRate(rates, ends);
+}
+1 {
+    sim.addSubpop("p1", asInteger(Nanc_zim));
+}
+//At the end of burn-in, bottleneck in the Zimbabwe population:
+174140 {
+    print("N at end of burn-in: " + p1.individualCount);
+    p1.setSubpopulationSize(asInteger(Nbot_zim));
+}
+//Zimbabwe population recovers in 1000/scaling_factor generations:
+174143 {
+    print("N during the zim bottleneck: " + p1.individualCount);
+    p1.setSubpopulationSize(asInteger(Ncur_zim));
+}
+174144 {print("N after Zim bottleneck: " + p1.individualCount);}
+//The Netherland population splits off, formed by 16982/scaling_factor individuals
+181397 {
+    sim.addSubpopSplit("p2", asInteger(Nanc_net), p1);
+    print("Net N anc: " + p2.individualCount);
+    print("Zim N after net split: " + p1.individualCount);
+}
+//exponential growth in the Netherland population until present
+181398:182047 {
+    newSize_net = round((1.0+g_rate_net)^(sim.generation - 181397) * Nanc_net);
+    p2.setSubpopulationSize(asInteger(newSize_net));
+}
+//admixture event
+182042 early(){
+    sim.addSubpop("p3", asInteger(Ncur_ral));
+    p3.setMigrationRates(c(p1, p2), c(0.15, 0.85));
+}
+182042 late(){
+    p3.setMigrationRates(c(p1, p2), c(0.0, 0.0));
+    print("Ral N anc: " + p3.individualCount);
+    print("Net N at admixture: " + p2.individualCount);
+    print("Zim N at admixture: " + p1.individualCount);
+}
+182047 late(){
+    sampledGen = sample(p3.genomes, 145, replace=F);
+    sampledGen.output(filePath=d_folder + "/output" + d_repID + ".txt", append=F);
+    sampledGen.outputMS(filePath=d_folder + "/output" + d_repID + ".ms", append=F);
+    sim.outputFixedMutations(filePath=d_folder + "/output" + d_repID + ".fixed", append=F);
+    print("Ncur_zim at the end of simulation: " + p1.individualCount);
+    print("Ncur_net at the end of simulation: " + p2.individualCount);
+    print("Ncur_ral at the end of simulation: " + p3.individualCount);
+    print("The last base in the chromosome: " + sim.chromosome.lastPosition);
+}
+
+

@@ -1,0 +1,148 @@
+//To run:
+//slim -d d_seed=seed -d "d_repID='replicate number'" -d "d_folder='folder name'" Duchen_const_rec.slim
+//slim -d d_seed=1 -d "d_repID='test'" -d "d_folder='.'" Duchen_const_rec.slim
+///mnt/storage/software/slim.3.1/build/slim -d d_seed=1 -d "d_repID='test'" -d "d_folder='.'" Arguello_neutral_const_rec_low_scaled100.slim
+//Arguello et al INZ model and DFE from Johri et al 2020, scaled 100-fold
+
+initialize() {
+    setSeed(d_seed);
+
+    //set genome structure parameters:
+    inter_len = 1068;
+    intron_len = 100;
+    exon_len = 300;
+    num_genes = 33;
+    num_exons = 5;
+    num_introns = 4;
+    full_block_len = inter_len + exon_len*num_exons + intron_len*num_introns;
+    exon_block_len = exon_len + intron_len;
+    full_genome_len = 100000 - 1;
+
+    //define pop gen parameters:
+    defineConstant("scaling_factor", 100);
+    defineConstant("Nanc_zim", round(1930000/scaling_factor));
+    defineConstant("Ncur_zim", round(3980000/scaling_factor));
+    defineConstant("Nanc_net", round(37800/scaling_factor));
+    defineConstant("Ncur_net", round(1600000/scaling_factor));
+    defineConstant("Nanc_ith", round(839/scaling_factor));
+    defineConstant("Ncur_ith", round(554000/scaling_factor));
+    defineConstant("duration_growth_ith", round(179/scaling_factor));
+    defineConstant("duration_growth_net", round(20000/scaling_factor));
+
+    defineConstant("mut_rate_mean", scaling_factor*1.39*1e-9);
+    defineConstant("rec_rate_mean", scaling_factor*0.5e-8);
+    defineConstant("g_rate_net", (log(Ncur_net/Nanc_net))/duration_growth_net);
+    defineConstant("g_rate_ith", (log(Ncur_ith/Nanc_ith))/duration_growth_ith);
+
+    //migration rates:
+    defineConstant("m_net_ith", scaling_factor*5.80e-5);
+    defineConstant("m_ith_net", scaling_factor*2.08e-5);
+    defineConstant("m_net_zim", scaling_factor*1.01e-5);
+    defineConstant("m_zim_net", scaling_factor*9.41e-6);
+    defineConstant("m_zim_ith", scaling_factor*1.07e-5);
+    defineConstant("m_ith_zim", scaling_factor*7.27e-6);
+    defineConstant("manc_net_zim", scaling_factor*2.19e-6);
+    defineConstant("manc_zim_net", scaling_factor*5.56e-6);
+
+    //selection parameters:
+    defineConstant("d_f0", 1);
+    defineConstant("d_f1", 0);
+    defineConstant("d_f2", 0);
+    defineConstant("d_f3", 0);
+    print("growth rate of net: " + g_rate_net);
+    print("growth rate of ith: " + g_rate_ith);
+    print("fraction of effectively neutral mutations: " + d_f0);
+    print("fraction of weakly deleterious mutations: " + d_f1);
+    print("fraction of moderately deleterious mutations: " + d_f2);
+    print("fraction of strongly deleterious mutations: " + d_f3);
+    
+    //define selection coefficient boundaries:
+    defineConstant("t0", 0.0);
+    defineConstant("t1", -1.0/(2*Nanc_zim));
+    defineConstant("t2", -10.0/(2*Nanc_zim));
+    defineConstant("t3", -100.0/(2*Nanc_zim));
+    defineConstant("t4", -1.0);
+    print(Nanc_zim);
+    print(t0);
+    print(t1);
+    print(t2);
+    print(t3);
+    print(t4);
+
+    // set the overall mutation rate map
+    initializeMutationRate(mut_rate_mean);
+
+    //define the DFE:
+    initializeMutationType("m1", 0.5, "f", 0.0); //neutral coding, 2Nes = 0
+    initializeMutationType("m2", 0.5, "s", "return runif(1, t2, t1);"); // -1<2Nes<-10, uniform distribution
+    initializeMutationType("m3", 0.5, "s", "return runif(1, t3, t2);"); //moderately deleterious, -10<2Nes<-100, uniform distribution
+    initializeMutationType("m4", 0.5, "s", "return runif(1, t4, t3);"); //strongly deleterious, 2Nes>=-100, uniform distribution
+    initializeMutationType("m5", 0.5, "f", 0.0); //neutral intergenic, 2Nes = 0
+
+    // g1 genomic element type: uses m1 for all mutations
+    initializeGenomicElementType("g1", m5, 1.0); //intergenic
+    initializeGenomicElementType("g2", m5, 1.0); //intronic
+    initializeGenomicElementType("g3", c(m1, m2, m3, m4), c(d_f0, d_f1, d_f2, d_f3)); //exons: weakly deleterious, gamma
+
+    //defining genes
+    for (index_a in 0:(num_genes-1)){
+        //print (index1);
+        initializeGenomicElement(g1, (index_a*full_block_len), (index_a*full_block_len + inter_len-1)); //intergenic
+        for (index_b in 0:(num_introns-1)){
+            //print (index_a);
+            //print (index_b);
+            initializeGenomicElement(g3, ((index_a*full_block_len) + inter_len + (index_b*exon_block_len)), (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len - 1));//exon
+            initializeGenomicElement(g2, (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len), (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len + intron_len-1));//intron
+            }
+        initializeGenomicElement(g3, (index_a*full_block_len + inter_len + (index_b+1)*exon_block_len), (index_a*full_block_len + inter_len + (index_b+1)*exon_block_len + exon_len - 1));//closing with exon
+        }
+    initializeGenomicElement(g1, full_block_len*num_genes, full_genome_len);//extra intergenic towards the end
+    
+    // uniform recombination along the chromosome
+    initializeRecombinationRate(rec_rate_mean);
+}
+1 {
+    sim.addSubpop("p1", asInteger(Nanc_zim));
+}
+//At the end of burn-in, inst growth in the Zimbabwe population and stay constant in size:
+193000 {
+    print("N at end of burn-in: " + p1.individualCount);
+    p1.setSubpopulationSize(asInteger(Ncur_zim));
+}
+193001 {print("N after Zim growth: " + p1.individualCount);}
+//The Netherland population splits off, formed by 37800/scaling_factor individuals
+193930 {
+    sim.addSubpopSplit("p2", asInteger(Nanc_net), p1);
+    p1.setMigrationRates(c(p2), c(manc_net_zim));
+    p2.setMigrationRates(c(p1), c(manc_zim_net));
+    print("Net N anc: " + p2.individualCount);
+    print("Zim N after net split: " + p1.individualCount);
+}
+//exponential growth in the Netherland population until present
+193931:194130 {
+    newSize_net = round((1.0+g_rate_net)^(sim.generation - 193930) * Nanc_net);
+    p2.setSubpopulationSize(asInteger(newSize_net));
+}
+//admixture event
+194128 early(){
+    sim.addSubpop("p3", asInteger(Ncur_ith));
+    p3.setMigrationRates(c(p1, p2), c(0.182, 1.0-0.182));
+}
+194128 late(){
+    p3.setMigrationRates(c(p1, p2), c(0.0, 0.0));
+    print("Ith N anc: " + p3.individualCount);
+    print("Net N at admixture: " + p2.individualCount);
+    print("Zim N at admixture: " + p1.individualCount);
+}
+194130 late(){
+    sampledGen = sample(p3.genomes, 145, replace=F);
+    sampledGen.output(filePath=d_folder + "/output" + d_repID + ".txt", append=F);
+    sampledGen.outputMS(filePath=d_folder + "/output" + d_repID + ".ms", append=F);
+    sim.outputFixedMutations(filePath=d_folder + "/output" + d_repID + ".fixed", append=F);
+    print("Ncur_zim at the end of simulation: " + p1.individualCount);
+    print("Ncur_net at the end of simulation: " + p2.individualCount);
+    print("Ncur_ith at the end of simulation: " + p3.individualCount);
+    print("The last base in the chromosome: " + sim.chromosome.lastPosition);
+}
+
+
