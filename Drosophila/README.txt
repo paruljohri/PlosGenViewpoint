@@ -13,6 +13,6 @@ Also has the Slurm submission scripts.
 4. Folder name: H12StatsScripts
 Has scripts adapted from the authors of Garud et al, to calculate H12 stats from 100kb genomic regions.
 
-5. File name: plot_H12_densityplots_mean0.r
+5. File name: plot_H12_densityplots_final.r
 R script to plot the distribution of H12 stats.
 
