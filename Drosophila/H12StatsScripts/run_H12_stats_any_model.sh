@@ -28,11 +28,6 @@ cd /scratch/pjohri1/PlosgenDroso/simulations_final
 echo "zipping folder"
 tar -zxvf ${folder}.tar.gz
 
-#Get some basic stats:
-#python /home/pjohri1/SlimStats/statistics_slidingwindow_pylibseq_general_reps.py -winSize 10000 -stepSize 10000 -regionLen 100000 -input_folder /scratch/pjohri1/PlosgenDroso/simulations/${folder} -output_folder /scratch/pjohri1/PlosgenDroso/simulations/${folder}_stats -output_prefix ${folder}
-
-#Rscript /home/pjohri1/SlimStats/get_winsummary_general.R /scratch/pjohri1/PlosgenDroso/simulations/${folder}_stats ${folder} 100000 10000
-
 #H1/H2 stats::
 cd /scratch/pjohri1/PlosgenDroso/simulations_final/${folder}
 files=(*.ms)
