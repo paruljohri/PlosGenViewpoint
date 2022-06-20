@@ -1,5 +1,4 @@
 #To plot the distributions of H12 stats for different scenarios.
-#Using boxplots.
 
 setwd("C:/Users/Parul Johri/Work/Projects/PlosgenViewPoint/PlosgenDroso/Statistics_final")
 library("ggplot2", lib.loc="~/R/win-library/3.5")
