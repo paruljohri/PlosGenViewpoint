@@ -1,5 +1,5 @@
 #ALERT!!!! Dec 14th, 2022: Debora Brandt has just alerted me of a dicrepancy between teh values presented in Table 3 and the text of Arguello et al. 
-#The values of split times presented in Table 3 of Rguello et al are actually in the "number of years". So the values of time in the script have to be multiplied by 10 (assuming 10 generations in 1 year).
+#The values of split times presented in Table 3 of Arguello et al are actually in the "number of years". So the values of time in the script have to be multiplied by 10 (assuming 10 generations in 1 year).
 #This is to simulate a chromosome of size 100kb using msprime and output data in ms format:
 #python simulate_msprime_Arguello_const_rec.py -outFolder /scratch/pjohri1/PlosgenDroso/simulations/Arguello_const_rec -repNum repID
 import sys
